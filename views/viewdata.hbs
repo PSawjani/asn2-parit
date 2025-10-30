@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <style>
+        table { border-collapse: collapse; width: 90%; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+        img { max-width: 150px; margin: 3px; }
+    </style>
+</head>
+<body>
+    <h2>{{title}}</h2>
+    {{#if data.length}}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Neighbourhood</th>
+                <th>Price</th>
+                <th>Service Fee</th>
+                <th>Thumbnail</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each data}}
+            <tr>
+                <td>{{NAME}}</td>
+                <td>{{neighbourhood}}</td>
+                <td>{{price}}</td>
+                <td>{{serviceFee service_fee_clean}}</td>
+                <td>
+                    {{#if thumbnail}}
+                        <img src="{{thumbnail}}" alt="Thumbnail">
+                    {{else}}
+                        N/A
+                    {{/if}}
+                </td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+    {{else}}
+    <p>No properties found.</p>
+    {{/if}}
+</body>
+</html>

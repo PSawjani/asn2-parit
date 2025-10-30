@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Name Result</title>
+    <style>
+        .property { border: 1px solid #000; padding: 10px; margin: 10px 0; }
+        .highlight { background-color: #ffdddd; }
+        img { max-width: 200px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h2>Results for "{{searchName}}"</h2>
+    {{#each matches}}
+        <div class="property {{#highlightEmptyFee this["service fee"]}}highlight{{/highlightEmptyFee}}">
+            <h3>{{NAME}}</h3>
+            <p><strong>Neighbourhood:</strong> {{neighbourhood}}</p>
+            <p><strong>Room Type:</strong> {{[room type]}}</p>
+            <p><strong>Price:</strong> {{price}}</p>
+            <p><strong>Service Fee:</strong> {{serviceFee this["service fee"]}}</p>
+            {{#if thumbnail}}
+                <img src="{{thumbnail}}" alt="Thumbnail">
+            {{/if}}
+        </div>
+    {{/each}}
+</body>
+</html>

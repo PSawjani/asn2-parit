@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{title}}</title>
+    <style>
+        form { margin: 20px 0; }
+        label { display: block; margin: 5px 0; }
+        input { margin: 5px 0; padding: 6px; }
+    </style>
+</head>
+<body>
+    <h2>{{title}}</h2>
+    <form action="/viewData/price/result" method="get">
+        <label for="min">Minimum Price:</label>
+        <input type="text" id="min" name="min" required>
+
+        <label for="max">Maximum Price:</label>
+        <input type="text" id="max" name="max" required>
+
+        <button type="submit">Search</button>
+    </form>
+</body>
+</html>

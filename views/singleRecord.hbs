@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Single Record</title>
+</head>
+<body>
+    <h1>{{title}}</h1>
+
+    <h2>Property Details</h2>
+    <ul>
+    <li><strong>ID:</strong> {{record.id}}</li>
+    <li><strong>Name:</strong> {{record.NAME}}</li>
+    <li><strong>Host Name:</strong> {{record.host_name}}</li>
+    <li><strong>Neighbourhood:</strong> {{record.neighbourhood}}</li>
+    <li><strong>Room Type:</strong> {{record.room_type}}</li>
+    <li><strong>Price:</strong> ${{record.price}}</li>
+    </ul>
+
+    {{#if record.thumbnail}}
+    <img src="{{record.thumbnail}}" alt="Property Image" width="300">
+    {{/if}}
+
+    <a href="/data">Back to All Data</a>
+
+</body>
+</html>
