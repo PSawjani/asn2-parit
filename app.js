@@ -7,25 +7,29 @@
 *
 * Name: Parit Sawjani Student ID: N01707730 Date: 10/27/25
 *
-*
 ******************************************************************************
 **/
 var express = require('express'); // Import express
 var path = require('path'); // Import path to handle file inputs
 var app = express(); // Creates the express instance
-const fs = require('fs');
+const fs = require('fs').promises; // Use async fs
 const { engine } = require('express-handlebars'); // Imports handlebars (engine)
 const { query, validationResult } = require('express-validator');
 const port = process.env.port || 3000; // Sets port number, either set from the .env file or use 3000
 
 const jsonPath = path.join(__dirname, 'airbnb_data.json');
-let airbnbData = [];
-try {
-  const rawData = fs.readFileSync(jsonPath, 'utf8');
-  airbnbData = JSON.parse(rawData);
-  console.log('Data loaded successfully');
-} catch (err) {
-  console.error('Error reading JSON file:', err);
+
+// Async loader function for Airbnb JSON data
+async function loadAirbnbData(limit = null) {
+    try {
+        const rawData = await fs.readFile(jsonPath, 'utf8');
+        let data = JSON.parse(rawData);
+        if (limit) data = data.slice(0, limit); // Load only top N records if needed
+        return data;
+    } catch (err) {
+        console.error('Error reading JSON file:', err);
+        return [];
+    }
 }
 
 app.use(express.static(path.join(__dirname, 'public'))); // Serves static files from public folder
@@ -66,153 +70,115 @@ app.get('/users', function (req, res) {
   res.send('respond with a resource');
 });
 
-// All Data Route
-app.get('/viewData', (req, res) => {
-    const data = airbnbData.map(item => ({
+// All Data Route (top 100 for deployment safety)
+app.get('/viewData', async (req, res) => {
+    const data = (await loadAirbnbData(100)).map(item => ({
         ...item,
         service_fee_clean: item['service fee']
     }));
     res.render('viewdata', { title: 'All Airbnb Properties', data });
 });
 
-app.get('/viewData/invoiceID/:index', (req, res) => {
+// Individual record by index
+app.get('/viewData/invoiceID/:index', async (req, res) => {
   const index = parseInt(req.params.index, 10);
-  if (isNaN(index) || index < 0 || index >= airbnbData.length) {
+  const data = await loadAirbnbData();
+  if (isNaN(index) || index < 0 || index >= data.length) {
     return res.render('error', { title: 'Error', message: 'Invalid index!' });
   }
-  res.render('dataByIndex', { title: 'Data by Index', record: airbnbData[index], index });
+  res.render('dataByIndex', { title: 'Data by Index', record: data[index], index });
 });
 
-app.get('/viewData/clean', (req, res) => {
-    const invoices = airbnbData.map(item => ({
+// Clean Data (highlight empty service fees)
+app.get('/viewData/clean', async (req, res) => {
+    const invoices = (await loadAirbnbData(100)).map(item => ({
         ...item,
         service_fee_clean: item['service fee']
     }));
     res.render('viewCleanData', { title: 'Cleaned Data (Highlight Empty Fees)', invoices });
 });
 
-app.get('/viewData/cleanFiltered', (req, res) => {
-    const invoices = airbnbData
+// Clean Filtered Data (remove empty service fees)
+app.get('/viewData/cleanFiltered', async (req, res) => {
+    const invoices = (await loadAirbnbData(100))
         .filter(item => item['service fee'] !== undefined && String(item['service fee']).trim() !== '')
-        .map(item => ({
-            ...item,
-            service_fee_clean: item['service fee']
-        }));
+        .map(item => ({ ...item, service_fee_clean: item['service fee'] }));
     res.render('viewCleanData', { title: 'Cleaned Data (Filtered)', invoices });
 });
 
-app.get('/viewData/price', (req, res) => {
-  res.render('priceForm', { title: 'Search by Price Range' });
-});
+// Price range form
+app.get('/viewData/price', (req, res) => res.render('priceForm', { title: 'Search by Price Range' }));
 
+// Price range result
 app.get(
-  '/viewData/price/result',
-  [
-    query('min')
-        .trim()
-        .notEmpty()
-        .withMessage('Minimum price required')
-        .isNumeric()
-        .withMessage('Minimum price must be a number')
-        .escape(),
-        query('max')
-            .trim()
-            .notEmpty()
-            .withMessage('Maximum price required')
-            .isNumeric()
-            .withMessage('Maximum price must be a number')
-            .escape(),
-        ],
-        (req, res) => {
+    '/viewData/price/result',
+    [
+        query('min').trim().notEmpty().withMessage('Minimum price required').isNumeric().withMessage('Minimum price must be a number').escape(),
+        query('max').trim().notEmpty().withMessage('Maximum price required').isNumeric().withMessage('Maximum price must be a number').escape(),
+    ],
+    async (req, res) => {
         const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-        return res.render('error', {
-            title: 'Error',
-            message: errors.array()[0].msg,
-        });
-        }
+        if (!errors.isEmpty()) return res.render('error', { title: 'Error', message: errors.array()[0].msg });
 
         const minPrice = parseFloat(req.query.min);
         const maxPrice = parseFloat(req.query.max);
-
-        const matches = airbnbData.filter(item => {
-        if (!item.price) return false;
+        const data = await loadAirbnbData();
+        const matches = data.filter(item => {
+            if (!item.price) return false;
             const numericPrice = parseFloat(String(item.price).replace(/[$,]/g, '').trim());
             return !isNaN(numericPrice) && numericPrice >= minPrice && numericPrice <= maxPrice;
         });
 
-        if (matches.length === 0) {
-        return res.render('error', {
-            title: 'No Results',
-            message: `No properties found between $${minPrice} and $${maxPrice}`,
-        });
-        }
+        if (matches.length === 0) return res.render('error', { title: 'No Results', message: `No properties found between $${minPrice} and $${maxPrice}` });
 
-        res.render('priceResult', {
-        title: `Properties from $${minPrice} to $${maxPrice}`,
-        matches,
-        minPrice,
-        maxPrice,
-        });
+        res.render('priceResult', { title: `Properties from $${minPrice} to $${maxPrice}`, matches, minPrice, maxPrice });
     }
 );
 
 // Search by ID form
-app.get('/search/id', (req, res) => {
-  res.render('searchIdForm', { title: 'Search by Property ID' });
-});
+app.get('/search/id', (req, res) => res.render('searchIdForm', { title: 'Search by Property ID' }));
 
 // Search by ID result with validation
 app.get('/search/id/result',
-  query('id').trim().notEmpty().withMessage('ID required').escape(),
-  (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.render('error', { title: 'Error', message: errors.array()[0].msg });
-    }
+    query('id').trim().notEmpty().withMessage('ID required').escape(),
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.render('error', { title: 'Error', message: errors.array()[0].msg });
 
-    const propertyId = req.query.id;
-    const record = airbnbData.find(item => item.id === propertyId);
+        const propertyId = req.query.id;
+        const data = await loadAirbnbData();
+        const record = data.find(item => item.id === propertyId);
 
-    if (!record) {
-            return res.render('error', { title: 'Not Found', message: `Property ID ${propertyId} not found` });
-        }
+        if (!record) return res.render('error', { title: 'Not Found', message: `Property ID ${propertyId} not found` });
+
         res.render('searchIdResult', { title: 'Property Details', record });
     }
 );
 
 // Search by Name form
-app.get('/search/name', (req, res) => {
-  res.render('searchNameForm', { title: 'Search by Property Name' });
-});
+app.get('/search/name', (req, res) => res.render('searchNameForm', { title: 'Search by Property Name' }));
 
 // Search by Name result
 app.get('/search/name/result',
     query('name').trim().notEmpty().withMessage('Name required').escape(),
-    (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.render('error', { title: 'Error', message: errors.array()[0].msg });
-    }
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) return res.render('error', { title: 'Error', message: errors.array()[0].msg });
 
-    const searchName = req.query.name;
-    const matches = airbnbData.filter(item =>
-        item["NAME"] && item["NAME"].toLowerCase().includes(searchName.toLowerCase())
-    );
+        const searchName = req.query.name;
+        const data = await loadAirbnbData();
+        const matches = data.filter(item => item["NAME"] && item["NAME"].toLowerCase().includes(searchName.toLowerCase()));
 
-    if (matches.length === 0) {
-        return res.render('error', { title: 'No Results', message: `No properties found matching "${searchName}"` });
-    }
+        if (matches.length === 0) return res.render('error', { title: 'No Results', message: `No properties found matching "${searchName}"` });
+
         res.render('searchNameResult', { title: 'Search Results', matches, searchName });
     }
 );
 
 // Wrong route
-app.use((req, res) => {
-  res.render('error', { title: 'Error', message: 'Wrong Route' });
-});
+app.use((req, res) => res.render('error', { title: 'Error', message: 'Wrong Route' }));
 
 // Listen for the port number and start the server
 app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`);
+console.log(`Example app listening at http://localhost:${port}`);
 });
